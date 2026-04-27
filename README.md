@@ -26,7 +26,7 @@ These scripts call reusable functions from the following R package:
 **MammalMethylClock**  
 https://github.com/jazoller96/mammalian-methyl-clocks/tree/main
 
-The `MammalMethylClock` package contains wrapper functions and standard pipeline functions used by the manuscript-specific scripts in this repository.
+The `MammalMethylClock` package contains wrapper functions and standard pipeline functions used by the manuscript-specific scripts in this repository.  (The package is hosted at the GitHub repository `mammalian-methyl-clocks`.)
 
 ## Required content checklist
 
@@ -84,15 +84,16 @@ The full manuscript analyses were run on a 2023 14-inch MacBook Pro with Apple M
 
 1. Install R.
 
-2. Install the `MammalMethylClock` R package from GitHub (instructions are listed on the GitHub page, as this repo currently is NOT formatted correctly to be able to run `remotes::install_github("jazoller96/mammalian-methyl-clocks")`)
+2. 2. Install the `MammalMethylClock` R package from GitHub using the instructions provided in that repository:
+   https://github.com/jazoller96/mammalian-methyl-clocks
 
 3. Install additional R package dependencies used by the project-specific scripts.
 
-4. Download or clone this repository: https://github.com/jazoller96/axolotl-epigenetic-clocks-paper-code/tree/main
+4. Download or clone this repository: https://github.com/jazoller96/axolotl-epigenetic-clocks-paper-code
 
 5. Place the required input data files in the expected local file structure described in the code.
 
-  Typical installation time on a normal desktop computer: Approximately 10–30 minutes, depending on whether R package dependencies are already installed.
+Typical installation time on a normal desktop computer: Approximately 10–30 minutes, depending on whether R package dependencies are already installed.
 
 ## Demo
 
@@ -108,11 +109,11 @@ The project-specific scripts require manuscript-associated input data files desc
 
 At least one script uses the following input files:
 
-- `Axolotl/SampleSheetAgeN131final.csv`
-- `Axolotl/all_probes_sesame_normalized.Rdata`
-- `HumanAndArrayAnnotations/AllNormalizedDataCBUAndInfo.RData`
-- `Frog/SampleSheetAgeN140final.csv`
-- `Frog/all_probes_sesame_normalized.Rdata`
+- `N131.ET0087.SalamanderMaxYun/SampleSheetAgeN131final.csv` (Axolotl sample sheet metadata)
+- `N131.ET0087.SalamanderMaxYun/all_probes_sesame_normalized.Rdata` (Axolotl DNAm data)
+- `AllNormalizedDataCBUAndInfo.RData` (Human DNAm data, sample metadata, and array annotation data)
+- `N140.2021-9212FrogChristofNiehrs/SampleSheetAgeN140final.csv` (Frog sample sheet metadata)
+- `N140.2021-9212FrogChristofNiehrs/all_probes_sesame_normalized.Rdata` (Frog DNAm data)
 
 Expected local input file structure (within workspace):
 
@@ -120,12 +121,12 @@ Expected local input file structure (within workspace):
   AllNormalizedDataCBUAndInfo.RData
   N131.ET0087.SalamanderMaxYun/
     SampleSheetAgeN131final.csv
-    all_probes_sesame_normalized.Rdata (Axolotl)
+    all_probes_sesame_normalized.Rdata
   N140.2021-9212FrogChristofNiehrs/
     SampleSheetAgeN140final.csv
-    all_probes_sesame_normalized.Rdata (Frog)
+    all_probes_sesame_normalized.Rdata
 
-Input data location: In `Data` Folder next to this README file.
+Input data location: Access is governed by Data Availability Statement
 
 ### Running the manuscript-specific workflow
 
@@ -151,11 +152,17 @@ Random seeds used for elastic-net regression, cross-validation, and other stocha
 
 ### Expected output
 
-The full workflow generates the reported manuscript outputs using the script titled: `Subset_AxolotlN131_PredictionResults.R`.  Not all figures are used for the final paper.  All figures used or partially used in Main, Supplement, or External Data are marked with a prefix.
+The full workflow generates manuscript-relevant outputs including prediction results, validation metrics, and figures. The primary outputs are extracted by the `Subset_AxolotlN131_PredictionResults.R`, with figures used in the Main Text, Supplementary Information, and Extended Data identified within this script using prefixes "Fig", "Tab", "Supp", or "Ext".
+
+Some scripts generate intermediate or exploratory outputs that are not included in the final manuscript.
 
 Expected runtime for the full manuscript workflow: Runtime varies by analysis step and input data size. Model fitting and cross-validation steps are expected to require the longest runtime.
 
+The scripts assume this directory structure and may require modification of local file paths if a different structure is used.
+
 ## Reproduction instructions
+
+The full manuscript workflow requires access to the manuscript-associated methylation data and sample annotation files described in the Data Availability Statement. These data are not included in this code repository. For users with authorized access to the required input data, the quantitative manuscript results can be reproduced by installing the required software, placing the input files in the expected local directory structure, and running the scripts in the order specified in Rprojectcode_JZ_run_order.COMMAND.
 
 To reproduce the quantitative results reported in the manuscript:
 
@@ -188,7 +195,7 @@ The code in this repository is released under the MIT License. See the `LICENSE`
 
 GitHub repository:
 
-https://github.com/jazoller96/axolotl-epigenetic-clocks-paper-code/tree/main
+https://github.com/jazoller96/axolotl-epigenetic-clocks-paper-code
 
 Archived release:
 
