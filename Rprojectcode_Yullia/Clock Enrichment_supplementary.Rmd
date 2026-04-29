@@ -1,0 +1,74 @@
+
+#Enrichment analysis based on methylation array data
+
+```{r}
+library(enrichR)
+```
+
+```{r}
+#only show specific databases
+websiteLive <- getOption("enrichR.live")
+if (websiteLive) 
+  dbs <- listEnrichrDbs()
+dbs_CM <- c("GO_Biological_Process_2023", "Reactome_2022","KEGG_2021_Human")
+```
+
+```{r}
+#Visualise only those genes, with signf level <0.01 
+data_pant <- fread("EWAS_bicor_YoungAge4_Enrichment.csv", dec = ",")
+data_pant_red <- data_pant[pvalueStudent < 0.01]
+```
+
+```{r}
+enrichedCM <- enrichr(data_pant_red$Gene, dbs_CM)
+```
+
+```{r}
+dt_CM <- do.call("rbind", enrichedCM)
+rwn1 <- rownames(dt_CM)
+setDT(dt_CM)
+dt_CM[, database_name := rwn1]
+```
+
+```{r}
+dt_CM[, Genes_overlap := sub("/[0-9]{1,4}", "", Overlap)]
+dt_CM[, total_genes := sub("[0-9]{1,4}/", "", Overlap)]
+dt_CM[, Term := sub("R-HSA-[0-9]{1,7}", "(R)", Term)]
+dt_CM[, Term := sub("(GO:[0-9]{1,7})", "GO", Term)]
+dt_CM[, logP := -log10(Adjusted.P.value)]
+```
+
+```{r}
+# Filter rows based on adj p value and genes overlap
+dt_CM <- dt_CM[Adjusted.P.value < 5e-2]
+dt_CM <- dt_CM[Genes_overlap >= 3]
+```
+
+```{r}
+# transforming characters to numbers
+dt_CM[, Genes_overlap := as.integer(Genes_overlap)]
+dt_CM[, total_genes := as.integer(total_genes)]
+```
+
+```{r}
+dt_CM[, richFactor := Genes_overlap / total_genes]
+dt_CM[, richFactor := round(richFactor, digits = 2)]
+dt_CM[, richFactor := as.numeric(as.character(richFactor))]
+
+dt_CM <- dt_CM[order(-dt_CM$Genes_overlap), ]
+
+dt_CM[, sample_id := factor("pan tissue")]
+colnames(dt_CM) <- make.names(colnames(dt_CM))
+```
+
+```{r}
+ggplot(dt_CM, aes(x = richFactor, y = reorder(Term, Genes_overlap), size = Genes_overlap, color = logP)) +
+  labs(y = NULL) +
+  geom_point() + scale_color_gradient(low = "#2092FF", high = "#CD0202") + scale_x_continuous(breaks = seq(0.02, 0.34, by = 0.1)) + theme_minimal() + theme(axis.text.x = element_text(margin = margin(t = 2), size = 9, face = "bold", color = "black"),
+        axis.text.y = element_text(margin = margin(r = 2), size = 7, color = "black"), 
+        panel.border = element_rect(color = "darkgrey", fill = NA, size = 0.6),
+        axis.title.x = element_text(size = 10, margin = margin(t = 10), color = "black"),
+        legend.title = element_text(size = 9, face = "bold", color = "black"),
+        legend.text = element_text(size = 8, color = "black")
+    )
+```
