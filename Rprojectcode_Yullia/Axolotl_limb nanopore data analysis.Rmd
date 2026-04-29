@@ -1,0 +1,861 @@
+---
+#Axolotl limb nanopore: mean methylation and correlation analysis
+#Detailed overview on data pre-processing and visualisation
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(ggstatsplot)
+library(corrplot)
+library(tidyr)
+library(RColorBrewer)
+library(stats)
+library(data.table)
+library(ggpubr)
+```
+
+##Data Pre-processing
+
+```{r}
+#read raw! promoter methylation file that will be used to calculate beta values
+prom_averag_meth <- read.csv(gzfile("combined_1kbp.csv.gz"))
+
+#read PRC2 targets list of genes
+PRC2_targets_list <- read.csv("PRC2_targets_list.csv")
+
+#read the overview of samples used for nanopore analysis
+Sample_overview <- read.csv("Sample_overview.csv")
+```
+
+```{r}
+#read axolotl annotation file
+annotation <- read.csv("annotation.csv")
+
+#read annotated CpG list file from the clock analysis
+clock_av_meth_prom_annot <- read.csv("clock_av_meth_prom_annot.csv")
+
+#read CpG list used to build axolotl pan tissue clock
+cpg_pantissue_clock <- read.csv("cpg_pantissue_clock.csv")
+
+#read CpG list used to build axolotl limb clock
+limb_clock <- read.csv("limb_clock.csv")
+```
+
+```{r}
+#filter out all gene regions if t = 0 in at least one sample
+prom_averag_meth <- prom_averag_meth %>%
+  filter(!if_any(ends_with("_t"), ~ . == 0))
+
+prom_averag_meth <- cbind(
+  prom_averag_meth[1],
+  prom_averag_meth[grep("_m$", names(prom_averag_meth))] / 
+    prom_averag_meth[grep("_t$", names(prom_averag_meth))]
+) # to obtain methylation values per gene region
+```
+
+
+```{r}
+#merging with annotation file
+prom_averag_meth <- merge(prom_averag_meth, annotation, by = "gene_id", all.x = TRUE)
+```
+
+```{r}
+#renaming columns
+names(prom_averag_meth) <- gsub("_m$", "", names(prom_averag_meth)) 
+names(prom_averag_meth)[names(prom_averag_meth) == "axolotl_r1_fullgenome"] <- "X101A" 
+names(prom_averag_meth)[names(prom_averag_meth) == "axolotl_182A_fullgenome"] <- "X182A"
+```
+
+```{r}
+#adding info on PRC2 target genes
+prom_averag_meth <- prom_averag_meth %>%
+  mutate(PRC2_targ = case_when(
+    hs_symbol %in% PRC2_targets_list$Gene ~ "PRC2 Target",
+    TRUE ~ 'All Promoters'
+  )) 
+  
+prom_averag_meth <- prom_averag_meth %>% #Calculating mean methylation value per age, but not for youngest samples - 0.73 and 1.1yo
+mutate(X2.2 = rowMeans(across(c(X163A, X162A)), na.rm = TRUE),
+  X4 = rowMeans(across(c(X22D, X156A)), na.rm = TRUE),
+  X6.6 = rowMeans(across(c(X174A, X175A)), na.rm = TRUE),
+  X9.84 = rowMeans(across(c(X182A, X183A)), na.rm = TRUE))
+
+prom_averag_meth <- prom_averag_meth %>%
+  mutate(All_Clock = if_else(gene_id %in% clock_av_meth_prom_annot$gene_id, "Yes", NA),
+    Rank_all_clock_genes = clock_av_meth_prom_annot$rank[match(gene_id, clock_av_meth_prom_annot$gene_id)]
+  ) #All Clock refers to all CpGs/genes from epigenetic clock study that mapped to axolotl genome, while rank shows the age relation from EWAS of age done in clock study
+```
+
+```{r}
+#calculating differentially methylated for youngest samples - 0.73 and 1.1yo
+prom_averag_meth <- prom_averag_meth %>%
+mutate(diff_0.73vs1.1 = X101A - X97A) %>%
+mutate(diff_meth = case_when(
+    diff_0.73vs1.1 > 0.2 | diff_0.73vs1.1 < -0.2 ~ "Yes",
+    TRUE ~ NA))
+```
+
+```{r}
+#transforming data for a long format
+meth_data_long <- prom_averag_meth [,-c(15:18)] %>%
+  pivot_longer(cols = starts_with("X"), 
+               names_to = "Sample_ID", 
+               values_to = "Methylation") %>%
+  left_join(Sample_overview[, c("Sample_ID_R", "Age")], 
+            by = c("Sample_ID" = "Sample_ID_R"))
+
+meth_data_long <- meth_data_long %>%
+   mutate(Age_com = case_when(
+    Age %in% c(3.55, 4.2) ~ 4,
+    TRUE ~ Age
+  ))
+```
+
+```{r}
+#transforming data to calculate mean methylation per age group.
+meth_data_long <- meth_data_long %>%
+  group_by(gene_id, Age_com) %>%
+  mutate(Methylation_mean_per_age = mean(Methylation, na.rm = TRUE)) %>%
+  ungroup()
+
+```
+
+```{r}
+colnames(prom_averag_meth)[2:11] <- paste0(colnames(prom_averag_meth)[2:11], "_", Sample_overview$Age[match(colnames(prom_averag_meth)[2:11], Sample_overview$Sample_ID_R)])
+#adding age to column names
+```
+
+##! Before running visualisation code chapter, first run the last section of the code - Statistical Tests##
+
+##Data Visualisation
+
+```{r}
+#Figure 5: Methylation distribution across age, violin plot
+ggplot(meth_data_long, aes(x = as.factor(Age_com), y = Methylation_mean_per_age, fill = as.factor(Age_com))) +
+  scale_fill_manual(values = brewer.pal(8, "Blues")) +
+  geom_violin(draw_quantiles = c(0.25, 0.75), colour = "black", size = 0.2, alpha = 0.95) +
+  labs(title = "All promoters", subtitle = "Kruskal-Wallis, p=0.0001",
+       x = "Age, in years", y = "Methylation") + 
+  stat_summary(fun = median, geom = "point", size = 0.7, color = "black") + 
+  stat_summary(fun = mean, geom = "label", aes(label = round(..y.., 3)),
+               vjust = 1.2, size = 1.9, color = "black", fill = "white",
+               alpha = 0.85, label.size = 0.2, position = position_nudge(y = 0.02)) +
+     theme_minimal() + 
+  scale_y_continuous(breaks = seq(from = 0, to = 1, by=0.1)) +
+  theme(axis.text.x = element_text(margin = margin(t = 2), size = 12.5),
+        axis.text.y = element_text(margin = margin(r = 2), size = 9.5),
+        axis.title.y = element_text(size = 11, margin = margin(r = 10)), 
+        axis.title.x = element_text(size = 11, margin = margin(t = 10)),
+        plot.title = element_text(size = 13),
+        plot.subtitle = element_text(size = 11),
+         axis.line = element_line(colour = "darkgrey", size = 0.2),
+         aspect.ratio = 0.4/1,
+        panel.grid.minor = element_blank(), 
+    panel.grid.major = element_blank(),
+    legend.position = "none") +
+  geom_hline(yintercept = 0.49, linetype = "dashed", color = "black", alpha=0.3) +
+    stat_pvalue_manual(dunn_df %>% 
+    filter(Source == 'All Promoters' & P.adj <= 0.05) %>%
+    mutate(
+      group1 = factor(group1),
+      group2 = factor(group2),
+      custom_label = paste("q=",round(P.adj,4))),
+    label = "custom_label", tip.length = 0.01, xmin = "group1", xmax = "group2",
+    y.position = seq(1.05, 1.15, length.out = nrow(dunn_df %>% filter (Source == 'All Promoters' & P.adj <= 0.05))),
+    bracket.size = 0.2, size = 1.3, inherit.aes = FALSE
+  )  
+
+```
+
+
+```{r}
+#Labels for methylation plots
+
+lowly_labels <- meth_data_long %>%
+  #Filter by methylation threshold
+  filter(Methylation_mean_per_age < 0.3) %>%
+  
+  distinct(gene_id, Age_com) %>%  # Keeps only unique gene IDs per Age_com
+  
+  group_by(Age_com) %>% 
+  summarise(n = n(),  #Number of unique genes
+            y_pos = 0.35,  #Adjust Y position for labels
+            .groups = "drop") %>% #Remove grouping after summarising
+   mutate(Source = "Lowly")
+  
+highly_labels <- meth_data_long %>%
+    filter(Methylation_mean_per_age > 0.7) %>%  
+  distinct(gene_id, Age_com) %>%  
+  group_by(Age_com) %>% 
+  summarise(n = n(), 
+            y_pos = 1.05, 
+            .groups = "drop") %>%
+   mutate(Source = "Highly")
+
+prc_h_labels <- meth_data_long %>%
+    filter(Methylation_mean_per_age > 0.7 & PRC2_targ == "PRC2 Target") %>%  
+  distinct(gene_id, Age_com) %>%  
+  group_by(Age_com) %>% 
+  summarise(n = n(), 
+            y_pos = 1.05, 
+            .groups = "drop") %>%
+   mutate(Source = "PRC2 Highly")
+
+prc_l_labels <- meth_data_long %>%
+    filter(Methylation_mean_per_age < 0.3 & PRC2_targ == "PRC2 Target") %>%  
+  distinct(gene_id, Age_com) %>%  
+  group_by(Age_com) %>% 
+  summarise(n = n(), 
+            y_pos = 0.35, 
+            .groups = "drop") %>%
+   mutate(Source = "PRC2 Lowly")
+
+plot_labels <- bind_rows(lowly_labels, highly_labels, prc_l_labels, prc_h_labels)
+
+rm(lowly_labels, highly_labels, prc_l_labels, prc_h_labels)
+```
+
+
+```{r}
+#Figure: high and low methylation across age: all promoters
+
+ggplot(meth_data_long %>% filter(Methylation_mean_per_age > 0.7), aes(x = as.factor(Age_com), y = Methylation_mean_per_age, fill = as.factor(Age_com))) +
+  geom_boxplot(colour = "black", width = 0.3, notch = TRUE, size = 0.3, alpha = 0.95, outlier.size = 0.5) +
+  labs(subtitle = paste("Kruskal-Wallis, p< 2.2e-16"), 
+       title = "Highly methylated genes",
+       x = "Age, in years", y = "Methylation")  + 
+  stat_summary(fun = mean, geom = "label", aes(label = round(..y.., 3)), vjust = 1.5, size = 1.6, color = "black", fill = "white", alpha = 0.85, label.size = 0.2, position = position_nudge(y = 0.01)) +
+  geom_text(data = plot_labels %>% filter(Source == 'Highly'),
+            aes(x = as.factor(Age_com), y = y_pos, label = paste0("n=", n)),
+            inherit.aes = FALSE, size = 1.5) +
+     theme_minimal() +
+  scale_fill_manual(values = brewer.pal(8, "Blues")) +
+  scale_y_continuous(breaks = seq(from = 0, to = 1, by=0.1)) +
+  theme(axis.text.x = element_text(margin = margin(t = 2), size = 8),
+        axis.text.y = element_text(margin = margin(r = 2), size = 8), 
+        axis.title.y = element_text(size = 8), 
+        axis.title.x = element_text(size = 8, margin = margin(t = 10)),
+        plot.title = element_text(size = 9.5), 
+        plot.subtitle = element_text(size = 7.5),
+        legend.position = "none",
+        axis.line = element_line(colour = "darkgrey", size = 0.3),
+        aspect.ratio = 1.4/2,
+        panel.grid.minor = element_blank(), 
+    panel.grid.major = element_blank()) +
+  geom_hline(yintercept = 0.877, linetype = "dashed", color = "black", alpha=0.3, size = 0.1) +
+    stat_pvalue_manual(dunn_df %>% 
+    filter(Source == 'Highly' & P.adj <= 0.05) %>%
+    mutate(
+      group1 = factor(group1),
+      group2 = factor(group2),
+      custom_label = paste("q =", formatC(P.adj, format = "e", digits = 2))),
+    label = "custom_label", tip.length = 0.001, xmin = "group1", xmax = "group2",
+    y.position = seq(1.1, 1.4, length.out = nrow(dunn_df %>% filter (Source == 'Highly' & P.adj <= 0.05))),
+    bracket.size = 0.1, size = 1.3, inherit.aes = FALSE, label.size = 1
+  )
+
+
+ggplot(meth_data_long %>% filter(Methylation_mean_per_age < 0.3), aes(x = as.factor(Age_com), y = Methylation_mean_per_age, fill = as.factor(Age_com))) +
+  geom_boxplot(colour = "black", width = 0.3, notch = TRUE, size = 0.3, alpha = 0.95, outlier.size = 0.5) +
+    labs(subtitle = paste("Kruskal-Wallis, p=1.651e-11"),
+       title = "Lowly methylated genes",
+       x = "Age, in years", y = NULL)  + 
+  stat_summary(fun = mean, geom = "label", aes(label = round(..y.., 3)), size = 1.6, color = "black", fill = "white", alpha = 0.85, label.size = 0.2, position = position_nudge(y = 0.01)
+  ) +
+   geom_text(data = plot_labels %>% filter(Source == 'Lowly'),
+            aes(x = as.factor(Age_com), y = y_pos, label = paste0("n=", n)), inherit.aes = FALSE,
+            size = 1.5) +
+    scale_fill_manual(values = brewer.pal(8, "Blues")) +
+     theme_minimal() + 
+  scale_y_continuous(breaks = seq(from = 0, to = 0.3, by=0.1)) + 
+theme(axis.title.x = element_text(margin = margin(t = 10)), axis.title.y = element_text(margin = margin(r = 10))) +
+  theme(axis.text.x = element_text(margin = margin(t = 2), size = 8),
+        axis.text.y = element_text(margin = margin(r = 2), size = 8), 
+        axis.title.y = element_text(size = 8), 
+        axis.title.x = element_text(size = 8),
+        plot.title = element_text(size = 9.5),
+        plot.subtitle = element_text(size = 7.5),
+        legend.position = "none",
+        aspect.ratio = 1.4/2,
+        axis.line = element_line(colour = "darkgrey", size = 0.3),
+        panel.grid.minor = element_blank(), 
+    panel.grid.major = element_blank()) +
+  geom_hline(yintercept = 0.026, linetype = "dashed", color = "black", alpha=0.3, size = 0.1) +
+    stat_pvalue_manual(dunn_df %>% 
+    filter(Source == 'Lowly' & P.adj <= 0.05) %>%
+    mutate(
+      group1 = factor(group1),
+      group2 = factor(group2),
+      custom_label = paste("q =", formatC(P.adj, format = "e", digits = 2))),
+    label = "custom_label", tip.length = 0.001, xmin = "group1", xmax = "group2",
+    y.position = seq(0.4, 0.7, length.out = nrow(dunn_df %>% filter (Source == 'Lowly' & P.adj <= 0.05))),
+    bracket.size = 0.1, size = 1.3, inherit.aes = FALSE, label.size = 1
+  )
+
+```
+
+
+
+```{r}
+ggplot(meth_data_long, aes(x = PRC2_targ, y = Methylation_mean_per_age, fill = PRC2_targ, alpha = 0.95)) +
+  geom_boxplot(colour = "black", width = 0.3, notch = TRUE, outlier.size = 0.5, size = 0.2) +
+  scale_fill_manual(values = brewer.pal(2, "Blues")) +
+  labs(subtitle = paste("PRC2 Target Genes, n =", 
+                      meth_data_long %>%
+                        filter(PRC2_targ == 'PRC2 Target') %>%
+                        summarise(n = n_distinct(gene_id)) %>%
+                        pull(n)), 
+       title = "Methylation in All Promoters vs PRC2 Targets",
+       x = "", y = "Methylation") + 
+  stat_summary(fun = mean, geom = "label", aes(label = round(..y.., 2)), vjust = 1.3, size = 2, color = "black", fill = "white", alpha = 0.85, label.size = 0.3, position = position_nudge(y = 0.01)) +
+     theme_minimal() + 
+  scale_y_continuous(breaks = seq(from = 0, to = 1, by=0.1)) +
+  theme(legend.position = "none",
+        axis.text.x = element_text(margin = margin(t = 2), size = 16),
+        axis.text.y = element_text(margin = margin(r = 2), size = 14), 
+        axis.title.y = element_text(size = 18, margin = margin(r = 10)), 
+        axis.title.x = element_text(size = 14, margin = margin(t = 10)),
+        plot.title = element_text(size = 18),
+        axis.line = element_line(colour = "darkgrey", size = 0.3),
+        plot.subtitle = element_text(size = 11),
+        aspect.ratio = 1/1.2, panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank()) 
+```
+
+
+```{r}
+#Figure: highly and lowly methylated across age in PRC2 Targets
+
+ggplot(meth_data_long %>% filter((Methylation_mean_per_age > 0.7) & (!is.na(PRC2_targ))), aes(x = as.factor(Age_com), y = Methylation_mean_per_age, fill = as.factor(Age_com))) +
+  geom_boxplot(colour = "black", width = 0.3, notch = TRUE, alpha = 0.95, outlier.size = 0.5, size = 0.2) +
+labs(subtitle = paste("p=0.9"), 
+       title = "Highly methylated genes: PRC2 Targets",
+       x = "Age, in years", y = "Methylation")  + 
+  scale_fill_manual(values = brewer.pal(8, "Blues")) +
+  stat_summary(fun = mean, geom = "label", aes(label = round(..y.., 2)), vjust = -0.15, size = 1.5, color = "black", fill = "white", alpha = 0.85, label.size = 0.3, position = position_nudge(y = 0.01)) +
+     geom_text(data = plot_labels %>% filter(Source == 'PRC2 Highly'),
+            aes(x = as.factor(Age_com), y = y_pos, label = paste0("n=", n)), inherit.aes = FALSE,
+            size = 2.5) +
+     theme_minimal() + 
+  scale_y_continuous(breaks = seq(from = 0, to = 1, by=0.1)) +
+  theme(axis.text.x = element_text(margin = margin(t = 2), size = 10.5),
+        axis.text.y = element_text(margin = margin(r = 2), size = 10.5), 
+        axis.title.y = element_text(size = 11), 
+        axis.title.x = element_text(size = 11, margin = margin(t = 10)),
+        plot.title = element_text(size = 11), 
+        plot.subtitle = element_text(size = 9),
+        legend.position = "none",
+        axis.line = element_line(colour = "darkgrey", size = 0.3),
+        aspect.ratio = 1.4/2,
+        panel.grid.minor = element_blank(), 
+    panel.grid.major = element_blank()) +
+  geom_hline(yintercept = 0.87, linetype = "dashed", color = "black", alpha=0.3)
+
+
+ggplot(meth_data_long %>% filter((Methylation_mean_per_age < 0.3) & (!is.na(PRC2_targ))), aes(x = as.factor(Age_com), y = Methylation_mean_per_age, fill = as.factor(Age_com))) +
+  geom_boxplot(colour = "black", width = 0.3, notch = TRUE, alpha = 0.95, outlier.size = 0.5, size = 0.2) +
+  scale_fill_manual(values = brewer.pal(8, "Blues")) +
+  labs(subtitle = paste("p=0.35"), 
+       title = "Lowly methylated genes: PRC2 Targets",
+       x = "Age, in years", y = NULL) +
+  stat_summary(fun = mean, geom = "label", aes(label = round(..y.., 2)), vjust = -0.05, size = 1.5, color = "black", fill = "white", alpha = 0.85, label.size = 0.3, position = position_nudge(y = 0.01)
+  ) +
+geom_text(data = plot_labels %>% filter(Source == 'PRC2 Lowly'),
+            aes(x = as.factor(Age_com), y = y_pos, label = paste0("n=", n)), inherit.aes = FALSE,
+            size = 2.5) +
+     theme_minimal() + 
+  scale_y_continuous(breaks = seq(from = 0, to = 0.3, by=0.1)) + 
+theme(axis.title.x = element_text(margin = margin(t = 10)), axis.title.y = element_text(margin = margin(r = 10))) +
+  theme(axis.text.x = element_text(margin = margin(t = 2), size = 10.5),
+        axis.text.y = element_text(margin = margin(r = 2), size = 10.5), 
+        axis.title.y = element_text(size = 11), 
+        axis.title.x = element_text(size = 11),
+        plot.title = element_text(size = 11),
+        axis.line = element_line(colour = "darkgrey", size = 0.3),
+        plot.subtitle = element_text(size = 9),
+        legend.position = "none",
+        aspect.ratio = 1.4/2,
+        panel.grid.minor = element_blank(), 
+    panel.grid.major = element_blank()) +
+  geom_hline(yintercept = 0.02, linetype = "dashed", color = "black", alpha=0.3) 
+
+```
+
+
+#Hierarchical Clustering
+
+```{r}
+data <- as.matrix(prom_averag_meth [, c(2:11)]) %>% #transforming data as matrix
+  na.omit () 
+
+library(pheatmap) #package needed to perform hierarchical clustering
+```
+
+```{r}
+Heat_all_clock <- prom_averag_meth %>% #matrix for all clock genes
+  filter(!is.na(All_Clock)) %>%
+  select(7, 10, 15:18) %>%
+  as.matrix() 
+```
+
+
+```{r}
+#heatmap for all clock genes
+pheatmap(Heat_all_clock, col = brewer.pal(7, "Blues"), main = "Clock promoters", fontsize = 11, angle_col=45, treeheight_col = 15, cutree_rows = 6, cutree_cols  = 4, cluster_rows = T, cluster_cols = T, clustering_distance_rows = "euclidean", clustering_distance_cols = "euclidean", fontsize_col = 11, cellwidth = 25)
+```
+
+
+```{r}
+#EWAS Analysis
+#transforming data for ewas analysis
+meth_prom_ewas <- prom_averag_meth %>%
+  t() %>%
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ]
+
+#preparing age data frame for ewas analysis
+age <- data.frame(
+  id = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+  Age = c(4, 9.84, 2.2, 4, 6.6, 0.73, 2.2, 9.84, 1.1, 6.6)
+)
+```
+
+```{r}
+library(WGCNA)
+
+#performing ewas of age
+ewas_results <- standardScreeningNumericTrait(datExpr = meth_prom_ewas[c(1:10), ],
+                                                  yNumeric = age$Age,
+                                                  corFnc = cor,
+                                                  corOptions = list(use = 'p'),
+                                                  alternative = "two.sided",
+                                                  qValues = TRUE,
+                                                  areaUnderROC = TRUE)
+```
+
+```{r}
+colnames(ewas_results)[1] <- "gene_id"
+ewas_results <- inner_join(prom_averag_meth, ewas_results, by = "gene_id")
+```
+
+
+```{r}
+#ewas analysis after maturation (excluding 0.73 and 1.1yo)
+ewas_results_exc_youngest <- standardScreeningNumericTrait(datExpr = meth_prom_ewas[c(1:5, 7:8, 10), ],
+                                                  yNumeric = age$Age[c(1:5, 7:8, 10)],
+                                                  corFnc = cor,
+                                                  corOptions = list(use = 'p'),
+                                                  alternative = "two.sided",
+                                                  qValues = TRUE,
+                                                  areaUnderROC = TRUE)
+```
+
+```{r}
+colnames(ewas_results_exc_youngest)[1] <- "gene_id"
+
+ewas_results_exc_youngest <- inner_join(prom_averag_meth, ewas_results_exc_youngest, by = "gene_id")
+
+```
+
+```{r}
+plot_meth <- function(gene, data = meth_data_long) {
+  # Subset data for the given gene symbol
+  gene_data1 <- subset(data, SYMBOL == gene)
+  
+  # Check if data for the given gene symbol exists
+  if (nrow(gene_data1) == 0) {
+    stop("No data found for the provided gene symbol.")
+  }
+  
+  # Fit linear model
+  l_model <- lm(Methylation_mean_per_age ~ Age_com, data = gene_data1)
+  
+  # Print summary of the linear model
+  cat("Summary of Linear Model:\n")
+  print(summary(l_model))
+  
+  # Calculate values
+  p_val <- summary(l_model)$coefficients[2, "Pr(>|t|)"]
+  r_squared <- as.numeric(summary(l_model)$r.squared)
+  cor_val <- cor(gene_data1$Age_com, gene_data1$Methylation_mean_per_age, use = "complete.obs")
+  
+  # Format p-value
+  if (p_val < 0.001) {
+    p_val_label <- paste("p:", signif(p_val, 3), "***")
+  } else if (p_val < 0.01) {
+    p_val_label <- paste("p:", signif(p_val, 3), "**")
+  } else if (p_val < 0.05) {
+    p_val_label <- paste("p:", signif(p_val, 3), "*")
+  } else {
+    p_val_label <- paste("p:", signif(p_val, 3))
+  }
+  
+  # Construct legend text
+  legend_text <- paste(
+    "r:", round(cor_val, 3),
+    "\nR²:", round(r_squared, 3),
+    "\n", p_val_label
+  )
+  
+  # Plot
+ggplot(gene_data1, aes(x = Age_com, y = Methylation_mean_per_age)) +
+  geom_point(color = "#137CA1", size = 3) +  # size ~ cex
+  geom_smooth(method = "lm", color = "black", size = 0.4, se = FALSE) +
+  scale_x_continuous(breaks = c(1, 2, 4, 6, 8, 10)) +
+  labs(
+    x = "Age",
+    y = "Methylation",
+    title = gene
+  ) +
+  annotate("text", x = Inf, y = Inf, label = legend_text, hjust = 1.5, vjust = 1,
+           size = 3.5, color = "black") +  # legend_text as annotation (like legend)
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    panel.border = element_rect(color = "darkgrey", fill = NA, size = 0.5),
+    panel.grid.minor = element_blank(), 
+    panel.grid.major = element_blank(),
+    axis.ticks = element_line(color = "darkgrey")
+  )
+}
+
+```
+
+```{r}
+#test that Z scores from ewas of age
+
+plot_meth("AM037193") 
+plot_meth("AM034897") 
+```
+
+```{r}
+library(EnvStats)
+```
+
+```{r}
+#EWAS plot across age
+ggplot(ewas_results, aes(x = PRC2_targ, y = Z, alpha = 0.95)) +
+  geom_boxplot(fill= c("#DCE1E4", "#7591AF"), notch = TRUE, outlier.size = 0.5, size = 0.25) + 
+    stat_summary(fun.y=mean, geom="point", shape=20, size=1.5, color="#E3740F", fill="#E3740F", alpha = 1) +
+    labs(title = "All Ages",
+       x = NULL, y = "EWAS Z-score")  + 
+     theme_minimal() + theme( axis.title.x = element_text(margin = margin(t = 10)), axis.title.y = element_text(margin = margin(r = 10))) +
+    scale_y_continuous(expand = expansion(mult = c(0.1, 0.1)), limits = c(-6.5, 6.5), breaks = seq(from = -6, to = 6, by=2)) +
+  theme(legend.position = "none", 
+        plot.title = element_text(size = 10), 
+       axis.line = element_line(colour = "darkgrey", size = 0.3),
+        aspect.ratio = 1/0.75,
+        panel.grid.minor = element_blank(), 
+    panel.grid.major = element_blank()) + 
+  stat_n_text(color = "black", text.box = TRUE, size=2) 
+
+#EWAS across age and in PRC2 Targets: after maturation
+ggplot(ewas_results_exc_youngest, aes(x = PRC2_targ, y = Z, alpha = 0.95)) +
+  geom_boxplot(fill= c("#DCE1E4", "#7591AF"), notch = TRUE, outlier.size = 0.5, size = 0.25) + 
+    stat_summary(fun.y=mean, geom="point", shape=20, size=1.5, color="#E3740F", fill="#E3740F", alpha = 1) +
+    labs(title = "After Maturation",
+       x = NULL, y = NULL)+ 
+      scale_y_continuous(expand = expansion(mult = c(0.1, 0.1)), limits = c(-6.5, 6.5), breaks = seq(from = -6, to = 6, by=2)) +
+     theme_minimal() + theme( axis.title.x = element_text(margin = margin(t = 10)), axis.title.y = element_text(margin = margin(r = 10))) +
+  theme(legend.position = "none", 
+        plot.title = element_text(size = 10), 
+        axis.line = element_line(colour = "darkgrey", size = 0.3),
+        aspect.ratio = 1/0.75,
+        panel.grid.minor = element_blank(), 
+    panel.grid.major = element_blank())  +
+  stat_n_text(color = "black", text.box = TRUE, size=2)
+
+#Visualising EWAS results to pick up hypermethylation or hypo- events
+
+ggplot(ewas_results %>% filter(Z != 0), aes(x = ifelse(Z > 0, "Increase", ifelse(Z < 0, "Decrease", NA)), fill = ifelse(Z > 0, cor > 0.5, ifelse(Z < 0, cor < -0.5, NA)))) +
+  geom_bar(width = 0.6) + 
+   geom_bar(aes(color = pvalueStudent < 0.05), 
+    fill = NA,
+    linewidth = 0.2,
+    width = 0.6, linetype = "dashed",show.legend = TRUE) +
+  facet_wrap(~PRC2_targ, scales = "free_y") +
+  scale_fill_manual(
+    values = c("TRUE" = "#7591AF", "FALSE" = "#DCE1E4"),
+    labels = c("TRUE" = "Strong |cor| > 0.5", "FALSE" = "Weak |cor| <= 0.5"),
+    name = 'Correlation'
+  ) +
+  scale_color_manual(
+    values = c("TRUE" = "darkred", "FALSE" = NULL),
+    labels = c("TRUE" = "p-value < 0.05",
+    name = NULL
+  )) +
+  labs(x = NULL, y = "Z-Score Frequency", title = 'All ages') +
+  theme_minimal() +
+  theme(axis.text.x = element_text(margin = margin(t = 2), size = 6),
+        axis.text.y = element_text(size = 7), 
+        axis.title.y = element_text(size = 8, margin = margin(r = 5)),
+        aspect.ratio = 1/0.95,
+        legend.position = 'none',
+        plot.title = element_text(size = 10),
+        axis.line = element_line(colour = "darkgrey", size = 0.3),
+        panel.grid.minor = element_blank(), 
+    panel.grid.major = element_blank(),
+    axis.ticks = element_line(color = "darkgrey"))   
+
+ggplot(ewas_results_exc_youngest %>% filter(Z != 0), aes(x = ifelse(Z > 0, "Increase", ifelse(Z < 0, "Decrease", NA)), fill = ifelse(Z > 0, cor > 0.5, ifelse(Z < 0, cor < -0.5, NA)))) +
+  geom_bar(width = 0.6) + 
+   geom_bar(aes(color = pvalueStudent < 0.05), 
+    fill = NA,
+    linewidth = 0.2,
+    width = 0.6, linetype = "dashed", show.legend = TRUE) +
+  facet_wrap(~PRC2_targ, scales = "free_y") +
+  scale_fill_manual(
+    values = c("TRUE" = "#7591AF", "FALSE" = "#DCE1E4"),
+    labels = c("TRUE" = "Strong |cor| > 0.5", "FALSE" = "Weak |cor| <= 0.5"),
+    name = 'Correlation'
+  ) +
+  scale_color_manual(
+    values = c("TRUE" = "darkred", "FALSE" = NULL),
+    labels = c("TRUE" = "p-value < 0.05",
+    name = NULL
+  )) +
+  labs(x = NULL, y = NULL, title = 'After maturation') +
+  theme_minimal() +
+  theme(axis.text.x = element_text(margin = margin(t = 2), size = 6),
+        axis.text.y = element_text(size = 7), 
+        axis.title.y = element_text(size = 8, margin = margin(r = 5)),
+        aspect.ratio = 1/0.95,
+        legend.position = 'right',
+        plot.title = element_text(size = 10),
+        axis.line = element_line(colour = "darkgrey", size = 0.3),
+        panel.grid.minor = element_blank(), 
+    panel.grid.major = element_blank(),
+    axis.ticks = element_line(color = "darkgrey"))  
+
+```
+
+#Correlation analysis
+
+```{r}
+library(corrplot) #for visualisation purposes, correlation is calculated with R cor function
+```
+
+```{r}
+#select top 100 age-related genes based on clock analysis
+heat_100_clock <- prom_averag_meth %>%
+  filter(!is.na(All_Clock)) %>%               #filter rows where All_Clock is not NA
+  filter(Rank_all_clock_genes %in% 
+         head(sort(Rank_all_clock_genes), 100)) %>%  #filter top 100 based on Rank_all_clock_genes
+  select(7, 10, 15:18) 
+```
+
+```{r}
+#Pearson correlation of all clock genes_mean methylation
+pearson_all_clock_mean <- cor(Heat_all_clock, method = "pearson")
+
+#Pearson correlation of 100 clock genes_mean methylation
+pearson_100_clock_mean <- cor(heat_100_clock, method = "pearson")
+
+#Pearson correlation of all promoters_mean methylation
+pearson_all_prom_mean <- cor(prom_averag_meth [,c(7, 10, 15:18)], method = "pearson")
+
+#Pearson correlation in PRC2 Targets_mean methylation
+pearson_prc2_mean <- cor(prom_averag_meth %>%
+    filter(PRC2_targ == "PRC2 Target") %>%
+    select(7, 10, 15:18), method = "pearson")
+
+#Pearson correlation in differentially methylated in youngest animals
+pearson_diff_mean <- cor(prom_averag_meth %>%
+    filter(diff_meth == "Yes") %>%
+    select(7, 10, 15:18), method = "pearson")
+```
+
+
+```{r}
+corrplot(pearson_prc2_mean, type = "lower", method = 'square', order="hclust", addCoef.col = "white", tl.col = "black", tl.srt=0, tl.offset = 1, tl.cex=1.5, number.cex = 1.3, cl.cex = 1.3, cl.length = 5, cl.ratio = 0.2, cl.pos = 'b', main = "cor: PRC2 Targets", mar = c(2,2,2,2), number.digits = 3, col.lim = c(0.9,1), diag = F, is.corr = FALSE, col=colorRampPalette(c("white", "#C1818F","#3180B1"))(200))
+
+corrplot(pearson_all_prom_mean, type = "lower", method = 'square', order="hclust", addCoef.col = "white", tl.col = "black",tl.srt=0, tl.offset = 1, tl.cex=1.5, number.cex = 1.3, cl.cex = 1.3, cl.length = 5, cl.ratio = 0.2, cl.pos = 'b', main = "cor: All Promoters", mar = c(2,2,2,2), number.digits = 3, col.lim = c(0.88,1), diag = F, is.corr = FALSE, col=colorRampPalette(c("white", "#C1818F","#3180B1"))(100))
+
+corrplot(pearson_all_clock_mean, type = "lower", method = 'square', order="hclust", addCoef.col = "white", tl.col = "black", tl.srt=0, tl.offset = 1,tl.cex=1.5, number.cex = 1.3, cl.cex = 1.3, cl.length = 5, cl.ratio = 0.2, cl.pos = 'b', main = "cor: All Clock Genes", mar = c(2,2,2,2), number.digits = 3, col.lim = c(0.88,1),is.corr = FALSE, diag = F, col=colorRampPalette(c("white", "#C1818F","#3180B1"))(200))
+
+corrplot(pearson_100_clock_mean, type = "lower", method = 'square', order="hclust", addCoef.col = "white", tl.col = "black", tl.srt=0, tl.offset = 1,tl.cex=1.5, number.cex = 1.3, cl.cex = 1.3, cl.length = 5, cl.ratio = 0.2, cl.pos = 'b', main = "cor: 100 Clock Genes", mar = c(2,2,2,2), number.digits = 3, col.lim = c(0.8,1),is.corr = FALSE, diag = F, col=colorRampPalette(c("white", "#C1818F","#3180B1"))(200))
+
+corrplot(pearson_diff_mean, type = "lower", method = 'square', order="hclust", addCoef.col = "white", tl.col = "black", tl.srt=0, tl.offset = 1, tl.cex=1.5, number.cex = 1.3, cl.cex = 1.3, cl.length = 5, cl.ratio = 0.2, cl.pos = 'b', main = "cor: Diff meth in youngest", mar = c(2,2,2,2), number.digits = 2, col.lim = c(0,1), is.corr = FALSE, diag = F, col=colorRampPalette(c("white", "#C1818F","#3180B1"))(200))
+```
+
+#Extended Figure 11, for differentially methylated in young - and similar in old analysis
+
+```{r}
+#function to visualise methylation across age
+plot_meth_log <- function(gene, data = meth_data_long) {
+  gene_data <- subset(data, SYMBOL == gene)
+  if (nrow(gene_data) == 0) {
+    stop("No data found")
+  }
+  
+  l_model <- lm(Methylation_mean_per_age ~ log(Age_com), data = gene_data)
+  
+  cat("Summary of Linear Model:\n")
+  print(summary(l_model))
+  
+  p_val <- summary(l_model)$coefficients[2, "Pr(>|t|)"]
+  r_squared <- as.numeric(summary(l_model)$r.squared)
+  cor_val <- cor(gene_data$Age_com, gene_data$Methylation_mean_per_age, use = "complete.obs")
+  
+  if (p_val < 0.001) {
+    p_val_label <- paste("p:", signif(p_val, 3), "***")
+  } else if (p_val < 0.01) {
+    p_val_label <- paste("p:", signif(p_val, 3), "**")
+  } else if (p_val < 0.05) {
+    p_val_label <- paste("p:", signif(p_val, 3), "*")
+  } else {
+    p_val_label <- paste("p:", signif(p_val, 3))
+  }
+  
+  legend_text <- paste(
+    "r:", round(cor_val, 3),
+    "\nR²:", round(r_squared, 3),
+    "\n", p_val_label
+  )
+  
+ggplot(gene_data, aes(x = Age_com, y = Methylation_mean_per_age)) +
+  geom_point(color = "#137CA1", size = 3) +  
+  geom_smooth(method = "lm", formula = y ~ log(x), color = "black", size = 0.4, se = FALSE) +
+  scale_x_continuous(breaks = c(1, 2, 4, 6, 8, 10)) +
+  labs(
+    x = "Age",
+    y = "Methylation",
+    title = gene
+  ) +
+  annotate("text", x = Inf, y = Inf, label = legend_text, hjust = 1.5, vjust = 1,
+           size = 3.5, color = "black") +  
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    panel.border = element_rect(color = "darkgrey", fill = NA, size = 0.5),
+    panel.grid.minor = element_blank(), 
+    panel.grid.major = element_blank(),
+    axis.ticks = element_line(color = "darkgrey")
+  )
+}
+```
+
+```{r}
+#Extended Figure 11, for differentially methylated in young - and similar in old example
+plot_meth_log('Uts2') 
+plot_meth_log('AM001758')
+```
+
+#Statistical Tests
+
+```{r}
+#Based on Kruskal-Wallis rank sum test and Dunn test for a pairwise comparison.
+
+library(FSA)
+#all promoters
+kruskal_test_all_prom <- kruskal.test(Methylation ~ Age_com, data = meth_data_long)
+kruskal_test_all_prom
+
+dunn_test_all_prom <- dunnTest(Methylation ~ as.factor(Age_com), data = meth_data_long, method = "bonferroni")
+dunn_test_all_prom
+```
+
+```{r}
+#highly methylated promoters
+
+kruskal_test_high <- kruskal.test(Methylation ~ Age_com, data = meth_data_long %>% filter(Methylation > 0.7))
+kruskal_test_high
+
+dunn_test_high <- dunnTest(Methylation ~ as.factor(Age_com), data = meth_data_long %>% filter(Methylation > 0.7), method = "bonferroni")
+dunn_test_high
+```
+
+```{r}
+#lowly methylated promoters
+
+kruskal_test_low <- kruskal.test(Methylation ~ Age_com, data = meth_data_long %>% filter(Methylation < 0.3))
+kruskal_test_low
+
+dunn_test_low <- dunnTest(Methylation ~ as.factor(Age_com), data = meth_data_long %>% filter(Methylation < 0.3), method = "bonferroni")
+dunn_test_low
+```
+
+
+```{r}
+#highly methylated PRC2 promoters
+
+kruskal_test_high_prc2 <- kruskal.test(Methylation ~ Age_com, data = meth_data_long %>% filter(Methylation > 0.7 & PRC2_targ == 'PRC2 Target'))
+kruskal_test_high_prc2
+
+dunn_test_high_prc2 <- dunnTest(Methylation ~ as.factor(Age_com), data = meth_data_long %>% filter(Methylation > 0.7 & PRC2_targ == 'PRC2 Target'), method = "bonferroni")
+dunn_test_high_prc2
+```
+
+```{r}
+#lowly methylated PRC2 promoters
+
+kruskal_test_low_prc2 <- kruskal.test(Methylation ~ Age_com, data = meth_data_long %>% filter(Methylation < 0.3 & PRC2_targ == 'PRC2 Target'))
+kruskal_test_low_prc2
+
+dunn_test_low_prc2 <- dunnTest(Methylation ~ as.factor(Age_com), data = meth_data_long %>% filter(Methylation < 0.3 & PRC2_targ == 'PRC2 Target'), method = "bonferroni")
+dunn_test_low_prc2
+```
+
+```{r}
+dunn_df <- dunn_test_all_prom$res %>%
+  mutate(Source = 'All Promoters')
+high <- dunn_test_high$res %>%
+  mutate(Source = 'Highly')
+high_p <- dunn_test_high_prc2$res %>%
+  mutate(Source = 'Highly PRC2')
+low <- dunn_test_low$res %>%
+  mutate(Source = 'Lowly')
+low_p <- dunn_test_low_prc2$res %>%
+  mutate(Source = 'Lowly PRC2')
+
+dunn_df <- bind_rows(dunn_df, high, high_p, low, low_p)
+
+rm(high, high_p, low, low_p)
+```
+
+
+```{r}
+dunn_df <- dunn_df %>%
+  mutate(
+    p_stars = case_when(
+      P.adj <= 0.0001 ~ "****",
+      P.adj <= 0.001  ~ "***",
+      P.adj <= 0.01   ~ "**",
+      P.adj <= 0.05   ~ "*",
+      TRUE            ~ "ns"
+    ))   %>%
+  separate(Comparison, into = c("group1", "group2"), sep = " - ") %>%
+  mutate(group1 = as.factor(group1),
+         group2 = as.factor(group2))
+```
+
+```{r}
+#changing values to match original age and transforming to factor
+dunn_df <- dunn_df %>%
+  mutate(
+    group1 = case_when(
+      group1 == "1.1" ~ "1.10",
+      group1 == "2.2" ~ "2.20",
+      group1 == "4"   ~ "4.00",
+      group1 == "6.6" ~ "6.60",
+      TRUE ~ group1
+    ),
+    group2 = case_when(
+      group2 == "1.1" ~ "1.10",
+      group2 == "2.2" ~ "2.20",
+      group2 == "4"   ~ "4.00",
+      group2 == "6.6" ~ "6.60",
+      TRUE ~ group2
+    )
+  ) %>%
+  mutate(
+    group1 = as.numeric(group1),
+    group2 = as.numeric(group2)
+  ) %>% 
+  mutate(log_p.adj = -10 * log10(P.adj))
+```
