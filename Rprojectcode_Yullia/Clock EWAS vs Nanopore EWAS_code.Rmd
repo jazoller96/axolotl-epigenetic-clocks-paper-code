@@ -1,0 +1,147 @@
+---
+title: "WGCNA EWAS_clock versus nanopore dataset"
+output: html_notebook
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(WGCNA)
+options(stringsAsFactors = FALSE)
+allowWGCNAThreads()
+```
+
+#EWAS on all ages using bicor
+
+```{r}
+#read promoter methylation file
+prom_averag_meth <- read.csv("prom_averag_meth.csv")
+#column name indicates sample ID (e.g., 182A) and animal age (e.g., 9.84)
+```
+
+```{r}
+#read EWAS analysis file from the clock part analysis across single CpG sites
+cpg_ewas_prom_comparison_pub <- read.csv("cpg_ewas_prom_comparison_pub.csv")
+```
+
+
+```{r}
+#Preparing data
+datMeth_e <- prom_averag_meth[,c(1:11)]
+rownames(datMeth_e) <- datMeth_e[[1]]
+datMeth_e <- datMeth_e[,-1]
+
+gsg <- goodSamplesGenes(datMeth_e, verbose = 3)
+
+datExpr_e <- t(datMeth_e) 
+
+#preparing age data frame for the analysis
+age_all <- data.frame(
+  id = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+  Age = c(4, 9.84, 2.2, 4, 6.6, 0.73, 2.2, 9.84, 1.1, 6.6)
+)
+```
+
+```{r}
+gsg <- goodSamplesGenes(datExpr_e, verbose = 3)
+gsg
+
+#only keeping good samples
+datExpr_e <- datExpr_e[gsg$goodSamples, gsg$goodGenes]
+```
+
+
+```{r}
+#Ewas of age
+ewas_allage_bicor <- standardScreeningNumericTrait(datExpr = datExpr_e,
+                                                  yNumeric = age_all$Age,
+                                                  corFnc = bicor,
+                                                  corOptions = list(use = 'p'),
+                                                  alternative = "two.sided",
+                                                  qValues = TRUE,
+                                                  areaUnderROC = TRUE)
+```
+
+```{r}
+colnames(ewas_allage_bicor)[2:6] <- paste0(colnames(ewas_allage_bicor)[2:6], "_bicor")
+colnames(ewas_allage_bicor)[1] <- "gene_id"
+
+ewas_allage_bicor <- inner_join(prom_averag_meth, ewas_allage_bicor, by = "gene_id")
+```
+
+
+#Comparing EWAS cor metrics between nanopore promoters and clock CpGs
+
+```{r}
+plot_compare <- function(
+    data,
+    x_var = cor, 
+    y_var = cor_cpg, 
+    colour_var = Tissue,
+    facet_formula = Category ~ Tissue,
+    colours = c("#3180B1", "#C1818F"),
+    cor_method = "pearson",
+    line_method = 'lm',
+    title = "Correlation Plot",
+    x_label = "X",
+    y_label = "Y",
+     gene_label = Gene,
+    max_points = NULL  # maximum number of genes to plot
+) {
+ 
+    facet_vars <- all.vars(facet_formula)
+    
+    if(!is.null(max_points)) { #to arrange genes alphabetically and then select specific number of genes, e.g., visualise only top 50
+    data <- data %>%
+      group_by(across(all_of(facet_vars))) %>%
+      arrange({{ gene_label }}) %>%
+      slice_head(n = max_points)
+    }
+  
+  #Build the plot
+  p <- ggplot(data, aes(x = {{ x_var }}, y = {{ y_var }}, colour = {{ colour_var }})) +
+    geom_point(size = 1.1, alpha = 0.5, show.legend = FALSE) +
+    facet_wrap(facet_formula, nrow = 2) +
+    geom_smooth(
+      method = line_method,
+      se = TRUE,
+      show.legend = FALSE,
+      size = 0.4,
+      colour = "grey",
+      alpha = 0.12) +
+    labs(title = title,
+      x = x_label,
+      y = y_label) +
+    scale_colour_manual(values = colours) +
+    ggpubr::stat_cor(method = cor_method,
+      show.legend = FALSE, size = 3, label.y = 1) +
+    scale_y_continuous(expand = expansion(mult = c(0.2, 0.2))) +
+    geom_text(data = data %>%
+        group_by(across(all_of(facet_vars))) %>%
+        summarise(n_sam = sum(!is.na({{ x_var }})),
+          .groups = "drop"),
+      aes(x = 0, y = 1.1, label = paste0("n = ", n_sam)),
+      inherit.aes = FALSE, size = 3, color = "black") +
+    theme_minimal() +
+    theme(aspect.ratio = 1, axis.text = element_text(size=10), strip.text = element_text(size=10),  title = element_text(size=10), legend.position = "right", panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+    panel.grid = element_blank(), legend.title = element_text(size=8),
+    legend.text = element_text(size=8), axis.ticks = element_line(color = "black"))
+  
+  return(p)
+}
+```
+
+
+```{r}
+#dataset for all ages
+cpg_ewas_prom_comparison_allage <- left_join(cpg_ewas_prom_comparison_pub, ewas_allage_bicor, by = c('Gene'= 'hs_symbol'))
+
+cpg_ewas_prom_comparison_allage <- cpg_ewas_prom_comparison_allage %>%
+  filter(!is.na(cor_bicor))
+```
+
+```{r}
+plot_compare(data = cpg_ewas_prom_comparison_allage %>% filter(Single_gene == 'yes' & Tissue == 'Limb' & Category  == 'PromF'),  title = "Pearson cor between EWAS: All ages Nanopore bicor vs Clock CpGs bicor", x_var = cor_bicor, x_label = "Nanopore EWAS bicor", y_label = "EWAS Array CpG bicor", colours = "deepskyblue4", max_points = 60)
+
+ggsave('Pearson cor between EWAS_All ages Nanopore bicor vs Clock CpGs bicor_60 genes_test.pdf', width = 10, height=6)
+```
