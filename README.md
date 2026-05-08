@@ -17,11 +17,11 @@ This repository contains project-specific code used to generate the analyses, mo
 
 The repository includes:
 
-- `Rprojectcode_JZ/`: Project-specific R scripts for data processing, clock training set definitions, clock model fitting, clock validation, and clock-related figure/table generation.
-- `Rprojectcode_JZ_run_order.COMMAND`: A command file specifying the intended execution order of the scripts in `Rprojectcode_JZ/`.
-- `Rprojectcode_Yullia/`: Project-specific R scripts and small data files for conducting axolotl nanopore sequencing-related analysis, focusing on mean methylation profiling across promoters in the limb tissue. The samples overview is provided in the file `Sample_overview.csv`.
+* `Rprojectcode\\\\\\\_JZ/`: Project-specific R scripts for data processing, clock training set definitions, clock model fitting, clock validation, and clock-related figure/table generation.
+* `Rprojectcode\\\\\\\_JZ\\\\\\\_run\\\\\\\_order.COMMAND`: A command file specifying the intended execution order of the scripts in `Rprojectcode\\\\\\\_JZ/`.
+* `Rprojectcode\\\\\\\_Yullia/`: Project-specific R scripts and small data files for conducting axolotl nanopore sequencing-related analysis, focusing on mean methylation profiling across promoters in the limb tissue. The samples overview is provided in the file `Sample\\\\\\\_overview.csv`.
 
-The scripts witihn `Rprojectcode_JZ/` call reusable functions from the following R package:
+The scripts witihn `Rprojectcode\\\\\\\_JZ/` call reusable functions from the following R package:
 
 **MammalMethylClock**  
 https://github.com/jazoller96/mammalian-methyl-clocks/tree/main
@@ -32,11 +32,11 @@ The `MammalMethylClock` package contains wrapper functions and standard pipeline
 
 This repository provides:
 
-- Source code for the manuscript-specific analyses, within `Rprojectcode_JZ/` and `Rprojectcode_Yullia/`.
-- Small data files for conducting axolotl nanopore sequencing-related analysis, within `Rprojectcode_Yullia/`.
-- A README file describing system requirements, installation, demo information, instructions for use, and reproduction instructions.
-- A command file, `Rprojectcode_JZ_run_order.COMMAND`, specifying the order in which the project-specific R scripts in `Rprojectcode_JZ/` should be run.
-- A license for code reuse.
+* Source code for the manuscript-specific analyses, within `Rprojectcode\\\\\\\_JZ/` and `Rprojectcode\\\\\\\_Yullia/`.
+* Small data files for conducting axolotl nanopore sequencing-related analysis, within `Rprojectcode\\\\\\\_Yullia/`.
+* A README file describing system requirements, installation, demo information, instructions for use, and reproduction instructions.
+* A command file, `Rprojectcode\\\\\\\_JZ\\\\\\\_run\\\\\\\_order.COMMAND`, specifying the order in which the project-specific R scripts in `Rprojectcode\\\\\\\_JZ/` should be run.
+* A license for code reuse.
 
 ## System requirements
 
@@ -44,20 +44,20 @@ This repository provides:
 
 The project-specific code was run on:
 
-- macOS Tahoe 26.4.1
-- MacBook Pro 14-inch, 2023
-- Apple M3 Max chip
-- 64 GB memory
+* macOS Tahoe 26.4.1
+* MacBook Pro 14-inch, 2023
+* Apple M3 Max chip
+* 64 GB memory
 
 ### R version tested
 
 The project-specific code was run using:
 
-- R version 4.5.2
+* R version 4.5.2
 
 ### Required software
 
-- R version 4.5.2 or a compatible version.
+* R version 4.5.2 or a compatible version.
 
 ### R package dependencies
 
@@ -65,11 +65,11 @@ The project-specific scripts call functions from `MammalMethylClock` and use add
 
 Major required R packages include:
 
-- `tidyverse`
-- `glmnet`
-- `WGCNA` (from BioConductor)
-- The `MammalMethylClock` R package:
-  https://github.com/jazoller96/mammalian-methyl-clocks/tree/main
+* `tidyverse`
+* `glmnet`
+* `WGCNA` (from BioConductor)
+* The `MammalMethylClock` R package:
+https://github.com/jazoller96/mammalian-methyl-clocks/tree/main
 
 Additional package calls may appear within individual R scripts.
 
@@ -84,9 +84,9 @@ The full manuscript analyses were run on a 2023 14-inch MacBook Pro with Apple M
 1. Install R.
 2. Install the major required R packages listed above.
 3. Install the `MammalMethylClock` R package from GitHub using the instructions provided in that repository:
-   https://github.com/jazoller96/mammalian-methyl-clocks
+https://github.com/jazoller96/mammalian-methyl-clocks
 4. Install additional R package dependencies used by the project-specific scripts.
-5. Download or clone this repository: https://github.com/jazoller96/axolotl-epigenetic-clocks-paper-code
+5. Download or clone this repository.
 6. Place the required input data files in the expected local file structure described in the code.
 
 Typical installation time on a normal desktop computer: Approximately 10–30 minutes, depending on whether R package dependencies are already installed.
@@ -95,117 +95,117 @@ Typical installation time on a normal desktop computer: Approximately 10–30 mi
 
 A small demo dataset is not included because the manuscript-specific analyses require the manuscript-associated methylation data files and sample annotation files described in the Data Availability Statement.
 
-The intended use of this repository is to document and run the manuscript-specific analysis workflow using the required manuscript-associated input data. The expected outputs are the manuscript figures, tables, validation results, model outputs, and supplementary results generated by the scripts listed in order in the file `Rprojectcode_JZ_run_order.COMMAND`, as well as the several other scripts that are in the folder `Rprojectcode_Yullia/`.
+The intended use of this repository is to document and run the manuscript-specific analysis workflow using the required manuscript-associated input data. The expected outputs are the manuscript figures, tables, validation results, model outputs, and supplementary results generated by the scripts listed in order in the file `Rprojectcode\\\\\\\_JZ\\\\\\\_run\\\\\\\_order.COMMAND`, as well as the several other scripts that are in the folder `Rprojectcode\\\\\\\_Yullia/`.
 
 ## Instructions for use
 
 ### Input data
 
-The project-specific scripts in the folder `Rprojectcode_JZ/` require manuscript-associated input data files described in the manuscript’s Data Availability Statement.
+The project-specific scripts in the folder `Rprojectcode\\\\\\\_JZ/` require manuscript-associated input data files described in the manuscript’s Data Availability Statement.
 
-The following input files are used in at least one R script in the folder `Rprojectcode_JZ/`:
+The following input files are used in at least one R script in the folder `Rprojectcode\\\\\\\_JZ/`:
 
-- `N131.ET0087.SalamanderMaxYun/SampleSheetAgeN131final.csv` (Axolotl sample sheet metadata)
-- `N131.ET0087.SalamanderMaxYun/all_probes_sesame_normalized.Rdata` (Axolotl DNAm data)
-- `AllNormalizedDataCBUAndInfo.RData` (Human DNAm data, sample metadata, and array annotation data)
-- `N140.2021-9212FrogChristofNiehrs/SampleSheetAgeN140final.csv` (Frog sample sheet metadata)
-- `N140.2021-9212FrogChristofNiehrs/all_probes_sesame_normalized.Rdata` (Frog DNAm data)
+* `N131.ET0087.SalamanderMaxYun/SampleSheetAgeN131final.csv` (Axolotl sample sheet metadata)
+* `N131.ET0087.SalamanderMaxYun/all\\\\\\\_probes\\\\\\\_sesame\\\\\\\_normalized.Rdata` (Axolotl DNAm data)
+* `AllNormalizedDataCBUAndInfo.RData` (Human DNAm data, sample metadata, and array annotation data)
+* `N140.2021-9212FrogChristofNiehrs/SampleSheetAgeN140final.csv` (Frog sample sheet metadata)
+* `N140.2021-9212FrogChristofNiehrs/all\\\\\\\_probes\\\\\\\_sesame\\\\\\\_normalized.Rdata` (Frog DNAm data)
 
 Expected local input file structure (within workspace):
 
 <Workspace>/
-  AllNormalizedDataCBUAndInfo.RData
-  N131.ET0087.SalamanderMaxYun/
-    SampleSheetAgeN131final.csv
-    all_probes_sesame_normalized.Rdata
-  N140.2021-9212FrogChristofNiehrs/
-    SampleSheetAgeN140final.csv
-    all_probes_sesame_normalized.Rdata
+AllNormalizedDataCBUAndInfo.RData
+N131.ET0087.SalamanderMaxYun/
+SampleSheetAgeN131final.csv
+all\_probes\_sesame\_normalized.Rdata
+N140.2021-9212FrogChristofNiehrs/
+SampleSheetAgeN140final.csv
+all\_probes\_sesame\_normalized.Rdata
 
 Input data location: Access is governed by Data Availability Statement
 
-The project-specific scripts in the folder `Rprojectcode_Yullia/` require manuscript-associated input data files also provided in the folder `Rprojectcode_Yullia/`.
+The project-specific scripts in the folder `Rprojectcode\\\\\\\_Yullia/` require manuscript-associated input data files also provided in the folder `Rprojectcode\\\\\\\_Yullia/`.
 
-The following input files are used in the R script `Rprojectcode_Yullia/Clock Enrichment_supplementary.Rmd`:
+The following input files are used in the R script `Rprojectcode\\\\\\\_Yullia/Clock Enrichment\\\\\\\_supplementary.Rmd`:
 
-- `EWAS_bicor_YoungAge4_Enrichment.csv` (EWAS hits for [TODO DESCRIPTION])
+* `EWAS\\\\\\\_bicor\\\\\\\_YoungAge4\\\\\\\_Enrichment.csv` (EWAS hits for 5,386 CpGs mapped to the axolotl genome in a pan-tissue dataset)
 
-The following input files are used in the R script `Rprojectcode_Yullia/Clock EWAS vs Nanopore EWAS_code.Rmd`:
+The following input files are used in the R script `Rprojectcode\\\\\\\_Yullia/Clock EWAS vs Nanopore EWAS\\\\\\\_code.Rmd`:
 
-- `prom_averag_meth.csv` ([TODO DESCRIPTION promoter methylation file?])
-- `cpg_ewas_prom_comparison_pub.csv` ([TODO DESCRIPTION EWAS analysis file from the clock part analysis across single CpG sites?])
+* `prom\\\\\\\_averag\\\\\\\_meth.csv` (File containing mean promoter methylation across annotated axolotl genes)
+* `cpg\\\\\\\_ewas\\\\\\\_prom\\\\\\\_comparison\\\\\\\_pub.csv` (EWAS hits for CpGs mapped to the axolotl genome and located in promoter-flanking regions in the array-based limb dataset. Genes represented by a single CpG in the array dataset are marked)
 
-The following input files are used in the R script `Rprojectcode_Yullia/WGCNA trajectories_nanopore dataset fig5.Rmd`:
+The following input files are used in the R script `Rprojectcode\\\\\\\_Yullia/WGCNA trajectories\\\\\\\_nanopore dataset fig5.Rmd`:
 
-- `prom_averag_meth.csv`
-- `meth_data_long.7z` (compressed .csv file; [TODO DESCRIPTION promoter methylation file in long format?])
+* `prom\\\\\\\_averag\\\\\\\_meth.csv`
+* `meth\\\\\\\_data\\\\\\\_long.7z` (compressed .csv file; Mean promoter methylation file in long format. Age parameter is presented in the file in two columns, first column represents single animal age, while second column Age\_com includes the 4-year-old group which was formed by combining animals aged 3.55 and 4.2 years to improve reliability. The file also contains mean methylation per promoter per age.)
 
-The following input files are used in the R script `Rprojectcode_Yullia/Axolotl_limb nanopore data analysis.Rmd`:
+The following input files are used in the R script `Rprojectcode\\\\\\\_Yullia/Axolotl\\\\\\\_limb nanopore data analysis.Rmd`:
 
-- `combined_1kbp.csv.gv` ([TODO DESCRIPTION raw promoter methylation file that will be used to calculate beta values?])
-- `PRC2_targets_list.csv` (PRC2 targets list of genes)
-- `Sample_overview.csv` (Axolotl sample sheet metadata for samples used in nanopore sequencing)
-- `annotation.csv` (Axolotl gene annotation file, for mapping "AMEX60DD" gene IDs to annotation-derived human gene names)
-- `clock_av_meth_prom_annot.csv` ([TODO DESCRIPTION annotated CpG list file from the clock analysis?])
-- `cpg_pantissue_clock.csv` (Mammalian array CG IDs selected in final axolotl all-ages pan-tissue clock, with multi-mapping to nearest "AMEX60DD" gene IDs)
-- `limb_clock.csv` (Mammalian array CG IDs selected in final axolotl all-ages limb-only clock, with multi-mapping to nearest "AMEX60DD" gene IDs)
+* `combined\\\\\\\_1kbp.csv.gv` (The file columns contain all CpGs combined within the promoter region of a gene (defined as +/-1kbp from TSS) within axolotl genes (first column). Following columns include total number of observations of each CpG in each promoter region (sample\_t), and the total number of methylated CpGs identified in the promoter region summed across all reads (sample\_m). To produce a single methylation value for each promoter region we divided the \_m column by the \_t column.)
+* `PRC2\\\\\\\_targets\\\\\\\_list.csv` (PRC2 targets list of genes)
+* `Sample\\\\\\\_overview.csv` (Axolotl sample sheet metadata for samples used in nanopore sequencing)
+* `annotation.csv` (Axolotl gene annotation file, for mapping "AMEX60DD" gene IDs to annotation-derived human gene names)
+* `clock\\\\\\\_av\\\\\\\_meth\\\\\\\_prom\\\\\\\_annot.csv` (Annotated CpG list file from the clock analysis ranked based on age association (top age hits) and mapped to the axolotl genes that appear in nanopore dataset)
+* `cpg\\\\\\\_pantissue\\\\\\\_clock.csv` (Mammalian array CG IDs selected in final axolotl all-ages pan-tissue clock, with multi-mapping to nearest "AMEX60DD" gene IDs)
+* `limb\\\\\\\_clock.csv` (Mammalian array CG IDs selected in final axolotl all-ages limb-only clock, with multi-mapping to nearest "AMEX60DD" gene IDs)
 
 Expected local input file structure (within workspace): All files are in the workspace at the same level as the R scripts.
 
-Input data location: In the folder `Rprojectcode_Yullia/`.
+Input data location: In the folder `Rprojectcode\\\\\\\_Yullia/`.
 
 ### Running the manuscript-specific workflow
 
-The scripts in `Rprojectcode_JZ/` perform manuscript-specific analysis steps, including:
+The scripts in `Rprojectcode\\\\\\\_JZ/` perform manuscript-specific analysis steps, including:
 
-- Data loading and processing.
-- Cohort and treatment/control subset definitions.
-- Model specification.
-- Model fitting.
-- Elastic-net regression and cross-validation.
-- Validation analyses.
-- Figure generation.
-- Table generation.
-- Supplementary result generation.
+* Data loading and processing.
+* Cohort and treatment/control subset definitions.
+* Model specification.
+* Model fitting.
+* Elastic-net regression and cross-validation.
+* Validation analyses.
+* Figure generation.
+* Table generation.
+* Supplementary result generation.
 
-The intended execution order for the scripts in `Rprojectcode_JZ/` is specified in `Rprojectcode_JZ_run_order.COMMAND`.
+The intended execution order for the scripts in `Rprojectcode\\\\\\\_JZ/` is specified in `Rprojectcode\\\\\\\_JZ\\\\\\\_run\\\\\\\_order.COMMAND`.
 
 Random seeds used for elastic-net regression, cross-validation, and other stochastic procedures are set within the relevant R scripts.
 
-The following are all of the scripts in `Rprojectcode_Yullia/`, accompanied by brief descriptions of each script:
+The following are all of the scripts in `Rprojectcode\\\\\\\_Yullia/`, accompanied by brief descriptions of each script:
 
-- `Clock Enrichment_supplementary.Rmd` (EnrichR data enrichment and data visualisation of top age-associated genes in extended data fig 10)
-- `Clock EWAS vs Nanopore EWAS_code.Rmd` (Array-based and nanopore-based  EWAS analyses comparison and data visualisation in extended data fig 11)
-- `WGCNA trajectories_nanopore dataset fig5.Rmd` (WGCNA-based methylation trajectories analysis via modules clustering and data visualisation in figure 5 and extended data fig 11)
-- `Axolotl_limb nanopore data analysis.Rmd` (Nanopore methylation data pre-processing, visualisation, correlation analysis, hierarchical clustering, and statistical analysis in figure 5 and extended data fig 11)
+* `Clock Enrichment\\\\\\\_supplementary.Rmd` (EnrichR data enrichment and data visualisation of top age-associated genes in extended data fig 10)
+* `Clock EWAS vs Nanopore EWAS\\\\\\\_code.Rmd` (Array-based and nanopore-based  EWAS analyses comparison and data visualisation in extended data fig 11)
+* `WGCNA trajectories\\\\\\\_nanopore dataset fig5.Rmd` (WGCNA-based methylation trajectories analysis via modules clustering and data visualisation in figure 5 and extended data fig 11)
+* `Axolotl\\\\\\\_limb nanopore data analysis.Rmd` (Nanopore methylation data pre-processing, visualisation, correlation analysis, hierarchical clustering, and statistical analysis in figure 5 and extended data fig 11)
 
 ### Expected output
 
-The full workflow in `Rprojectcode_JZ_run_order.COMMAND` generates manuscript-relevant outputs including prediction results, validation metrics, figures, and tables. The primary outputs are extracted by the `Subset_AxolotlN131_PredictionResults.R`, with figures used in the Main Text, Supplementary Information, and Extended Data identified within this script using prefixes "Fig", "Tab", "Supp", or "Ext".
+The full workflow in `Rprojectcode\\\\\\\_JZ\\\\\\\_run\\\\\\\_order.COMMAND` generates manuscript-relevant outputs including prediction results, validation metrics, figures, and tables. The primary outputs are extracted by the `Subset\\\\\\\_AxolotlN131\\\\\\\_PredictionResults.R`, with figures used in the Main Text, Supplementary Information, and Extended Data identified within this script using prefixes "Fig", "Tab", "Supp", or "Ext".
 
-Some of the scripts in `Rprojectcode_JZ_run_order.COMMAND` generate intermediate or exploratory outputs that are not included in the final manuscript.
+Some of the scripts in `Rprojectcode\\\\\\\_JZ\\\\\\\_run\\\\\\\_order.COMMAND` generate intermediate or exploratory outputs that are not included in the final manuscript.
 
-Expected runtime for the full manuscript workflow in `Rprojectcode_JZ_run_order.COMMAND`: Runtime varies by analysis step and input data size. Model fitting and cross-validation steps are expected to require the longest runtime.
+Expected runtime for the full manuscript workflow in `Rprojectcode\\\\\\\_JZ\\\\\\\_run\\\\\\\_order.COMMAND`: Runtime varies by analysis step and input data size. Model fitting and cross-validation steps are expected to require the longest runtime.
 
-The small number of scripts in the folder `Rprojectcode_Yullia/` generate manuscript-relevant outputs including figures and tables.
+The small number of scripts in the folder `Rprojectcode\\\\\\\_Yullia/` generate manuscript-relevant outputs including figures and tables.
 
 ## Reproduction instructions
 
-The full manuscript workflow in `Rprojectcode_JZ_run_order.COMMAND` requires access to the manuscript-associated methylation data and sample annotation files described in the Data Availability Statement. These data are not included in this code repository. For users with authorized access to the required input data, the quantitative manuscript results can be reproduced by installing the required software, placing the input files in the expected local directory structure, and running the scripts in the order specified in `Rprojectcode_JZ_run_order.COMMAND`.
+The full manuscript workflow in `Rprojectcode\\\\\\\_JZ\\\\\\\_run\\\\\\\_order.COMMAND` requires access to the manuscript-associated methylation data and sample annotation files described in the Data Availability Statement. These data are not included in this code repository. For users with authorized access to the required input data, the quantitative manuscript results can be reproduced by installing the required software, placing the input files in the expected local directory structure, and running the scripts in the order specified in `Rprojectcode\\\\\\\_JZ\\\\\\\_run\\\\\\\_order.COMMAND`.
 
-The small number of scripts in the folder `Rprojectcode_Yullia/` can be run with the data provided in the same `Rprojectcode_Yullia/` folder.
+The small number of scripts in the folder `Rprojectcode\\\\\\\_Yullia/` can be run with the data provided in the same `Rprojectcode\\\\\\\_Yullia/` folder.
 
 To reproduce the quantitative results reported in the manuscript:
 
 1. Install R version 4.5.2.
 2. Install the major required R packages listed above.
 3. Install the `MammalMethylClock` R package from:
-   https://github.com/jazoller96/mammalian-methyl-clocks/tree/main
+https://github.com/jazoller96/mammalian-methyl-clocks/tree/main
 4. Install the additional required R package dependencies listed above and/or called by the individual scripts.
 5. Obtain the manuscript-associated input data described in the Data Availability Statement.
-6. Place the input data from `Rprojectcode_JZ_run_order.COMMAND` in the expected local file structure described above.
-7. Run the scripts in `Rprojectcode_JZ/` in the order specified in `Rprojectcode_JZ_run_order.COMMAND`.
-8. Run scripts in `Rprojectcode_Yullia/`.
+6. Place the input data from `Rprojectcode\\\\\\\_JZ\\\\\\\_run\\\\\\\_order.COMMAND` in the expected local file structure described above.
+7. Run the scripts in `Rprojectcode\\\\\\\_JZ/` in the order specified in `Rprojectcode\\\\\\\_JZ\\\\\\\_run\\\\\\\_order.COMMAND`.
+8. Run scripts in `Rprojectcode\\\\\\\_Yullia/`.
 9. Compare the generated outputs with the reported manuscript figures, tables, validation analyses, model outputs, and supplementary results.
 
 Some local file paths need to be created in the workspace in order for these scripts to run, through the creation of 1st-level folders with specific names prior to running the full workflow.
@@ -214,11 +214,12 @@ Some local file paths need to be created in the workspace in order for these scr
 
 A complete description of the code’s functionality is provided in the manuscript:
 
-- Methods section
-- Supplementary Methods
+* Methods section
+* Supplementary Methods
 
 The manuscript Methods section describes the analysis pipeline, model fitting procedures, validation analyses, and figure/table generation at the level needed to understand the functionality of the code.
 
 ## License
 
 The code in this repository is released under the MIT License. See the `LICENSE` file for details.
+
